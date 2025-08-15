@@ -13,8 +13,8 @@ const app = express();
 app.use(
   cors({
     origin: [
-      "http://localhost:5173"
-       // your deployed FE
+      "http://localhost:5173",
+      "https://hrmonitoringdashboard.netlify.app/"
     ],
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type"],
