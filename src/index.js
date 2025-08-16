@@ -9,17 +9,25 @@ import summaryRouter from './routes/summary.js';
 dotenv.config();
 const app = express();
 
-// CORS
+// ✅ CORS configuration
+const allowedOrigin = "https://hrmonitoringdashboard.netlify.app";
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      // "https://hrmonitoringdashboard.netlify.app/"
-    ],
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type"],
+    origin: allowedOrigin,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
+
+// ✅ Handle preflight requests
+app.options('*', cors({
+  origin: allowedOrigin,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+}));
 
 // Parse JSON
 app.use(express.json());
@@ -27,22 +35,28 @@ app.use(express.json());
 // Initialize SSE clients array
 app.set('sseClients', []);
 
-// MongoDB connect
-mongoose.connect(process.env.MONGO_URI, { dbName: 'hr_monitoring' })
+// ✅ MongoDB connect
+mongoose
+  .connect(process.env.MONGO_URI, { dbName: 'hr_monitoring' })
   .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  .catch(err => console.error('❌ MongoDB connection error:', err));
 
 // Routes
 app.use('/api/logs', logsRouter);
 app.use('/api/summary', summaryRouter);
 
-// SSE stream
+// ✅ SSE stream with CORS headers
 app.get('/api/stream', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 
-  // Send initial comment to keep connection alive
+  // Initial ping
   res.write('retry: 5000\n\n');
 
   const clients = app.get('sseClients');
@@ -57,5 +71,6 @@ app.get('/api/stream', (req, res) => {
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
+// Start server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
